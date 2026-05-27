@@ -1,3 +1,6 @@
+
+> **Docs:** [ZAP Erlang SDK](https://zap-proto.dev/docs/sdks/erlang) · part of the [ZAP Protocol](https://zap-proto.io)
+
 ecapnp
 ======
 
