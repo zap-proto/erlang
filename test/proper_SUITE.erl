@@ -26,6 +26,6 @@ run_proper(_Config) ->
     [begin
          [] = proper:check_specs(Module, Options),
          [] = proper:module(Module, Options)
-     end || Module <- [ecapnp_props]
+     end || Module <- [ezap_props]
     ],
     ok.

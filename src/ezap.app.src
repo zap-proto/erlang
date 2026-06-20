@@ -1,0 +1,9 @@
+%% -*- mode: erlang -*-
+{application, ezap,
+ [{description, "Zap library for Erlang"},
+  {vsn, "0.2"},
+  {registered, []},
+  {applications, [ kernel, stdlib, crypto ]},
+  {modules, [ezap_capability, ezapc, ezap_val, ezap_obj, ezap_schema, ezap_compiler, ezap_get, ezap_ref, ezap_serialize, ezap, ezap_message, ezap_data, ezap_set, 'c++_zap', schema_zap]},
+  {env, []}
+ ]}.

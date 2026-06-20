@@ -19,15 +19,15 @@
 %% @doc Calculator client sample application.
 %%
 %% The operations are based on the calculator client sample from the
-%% capnproto distribution.
+%% zap distribution.
 
 -module('calculator-client').
 
 -export([run/0, handle_call/5]).
 
 run() ->
-    ecapnp_promise_sup:start_link(),
-    ecapnp_capability_sup:start_link(),
+    ezap_promise_sup:start_link(),
+    ezap_capability_sup:start_link(),
     Calculator = connect(),
     _ =
         [begin
@@ -54,16 +54,16 @@ connect() ->
 
 connect({Addr, Port}) ->
     {ok, Socket} = gen_tcp:connect(Addr, Port, [binary, {active, false}]),
-    {ok, Vat} = ecapnp_vat:start_link({gen_tcp, Socket}),
+    {ok, Vat} = ezap_vat:start_link({gen_tcp, Socket}),
     spawn_link(fun () -> read_socket(Socket, Vat) end),
-    ecapnp:import_capability(
+    ezap:import_capability(
       Vat, {text, <<"calculator">>},
-      calculator_capnp:'Calculator'()).
+      calculator_zap:'Calculator'()).
 
 read_socket(Sock, Vat) ->
     case gen_tcp:recv(Sock, 0) of
         {ok, Data} ->
-            %% useful to check where/when ecapnp is waiting on response data
+            %% useful to check where/when ezap is waiting on response data
             %% erlang:send_after(2000, Vat, {receive_message, Data}),
             Vat ! {receive_data, Data},
             read_socket(Sock, Vat);
@@ -76,14 +76,14 @@ read_socket(Sock, Vat) ->
 
 eval_literal(C) ->
     io:format("~nEvaluating a literal... "),
-    Req = ecapnp:request(evaluate, C),
-    Expression = ecapnp:init(expression, Req),
-    ok = ecapnp:set({literal, 123}, Expression),
-    EvalPromise = ecapnp:send(Req),
-    Read = ecapnp:request(read, ecapnp:get(value, EvalPromise)),
-    ReadPromise = ecapnp:send(Read),
-    {ok, Response} = ecapnp:wait(ReadPromise),
-    case ecapnp:get(value, Response) of
+    Req = ezap:request(evaluate, C),
+    Expression = ezap:init(expression, Req),
+    ok = ezap:set({literal, 123}, Expression),
+    EvalPromise = ezap:send(Req),
+    Read = ezap:request(read, ezap:get(value, EvalPromise)),
+    ReadPromise = ezap:send(Read),
+    {ok, Response} = ezap:wait(ReadPromise),
+    case ezap:get(value, Response) of
         123.0 ->
             io:format("PASS");
         Other ->
@@ -95,30 +95,30 @@ add_and_subtract(C0) ->
     io:format("~nUsing add and subtract... "),
     %% resolve the Calculator promise to use the imported cap, rather
     %% than the promise
-    {ok, C} = ecapnp:wait(C0),
+    {ok, C} = ezap:wait(C0),
 
     Add = get_operator(add, C),
     Sub = get_operator(subtract, C),
 
-    Req = ecapnp:request(evaluate, C),
-    Expr = ecapnp:init(expression, Req),
+    Req = ezap:request(evaluate, C),
+    Expr = ezap:init(expression, Req),
 
-    SubCall = ecapnp:set(call, Expr),
-    ok = ecapnp:set(function, Sub, SubCall),
-    [Sub1, Sub2] = ecapnp:set(params, 2, SubCall),
-    ecapnp:set({literal, 67}, Sub2),
+    SubCall = ezap:set(call, Expr),
+    ok = ezap:set(function, Sub, SubCall),
+    [Sub1, Sub2] = ezap:set(params, 2, SubCall),
+    ezap:set({literal, 67}, Sub2),
 
-    AddCall = ecapnp:set(call, Sub1),
-    ok = ecapnp:set(function, Add, AddCall),
-    [Add1, Add2] = ecapnp:set(params, 2, AddCall),
-    ok = ecapnp:set({literal, 123}, Add1),
-    ok = ecapnp:set({literal, 45}, Add2),
+    AddCall = ezap:set(call, Sub1),
+    ok = ezap:set(function, Add, AddCall),
+    [Add1, Add2] = ezap:set(params, 2, AddCall),
+    ok = ezap:set({literal, 123}, Add1),
+    ok = ezap:set({literal, 45}, Add2),
 
-    Promise = ecapnp:send(Req),
-    Read = ecapnp:request(read, ecapnp:get(value, Promise)),
-    ReadPromise = ecapnp:send(Read),
-    {ok, Response} = ecapnp:wait(ReadPromise),
-    case ecapnp:get(value, Response) of
+    Promise = ezap:send(Req),
+    Read = ezap:request(read, ezap:get(value, Promise)),
+    ReadPromise = ezap:send(Read),
+    {ok, Response} = ezap:wait(ReadPromise),
+    case ezap:get(value, Response) of
         101.0 ->
             io:format("PASS");
         Other ->
@@ -131,41 +131,41 @@ pipelining(C) ->
     Add = get_operator(add, C),
     Mul = get_operator(multiply, C),
 
-    Req = ecapnp:request(evaluate, C),
-    Expr = ecapnp:init(expression, Req),
+    Req = ezap:request(evaluate, C),
+    Expr = ezap:init(expression, Req),
     [Mul1, Mul2] = call_expression(Mul, 2, Expr),
 
-    ok = ecapnp:set({literal, 4}, Mul1),
-    ok = ecapnp:set({literal, 6}, Mul2),
+    ok = ezap:set({literal, 4}, Mul1),
+    ok = ezap:set({literal, 6}, Mul2),
 
-    MulPromise = ecapnp:send(Req),
-    MulValue = ecapnp:get(value, MulPromise),
+    MulPromise = ezap:send(Req),
+    MulValue = ezap:get(value, MulPromise),
 
-    Add3Req = ecapnp:request(evaluate, C),
+    Add3Req = ezap:request(evaluate, C),
     [Add3P1, Add3P2] = call_expression(
-                         Add, 2, ecapnp:init(
+                         Add, 2, ezap:init(
                                    expression, Add3Req)),
-    ok = ecapnp:set({previousResult, MulValue}, Add3P1),
-    ok = ecapnp:set({literal, 3}, Add3P2),
-    Add3Promise = ecapnp:send(Add3Req),
-    Add3Value = ecapnp:send(
-                  ecapnp:request(
-                    read, ecapnp:get(value, Add3Promise))),
+    ok = ezap:set({previousResult, MulValue}, Add3P1),
+    ok = ezap:set({literal, 3}, Add3P2),
+    Add3Promise = ezap:send(Add3Req),
+    Add3Value = ezap:send(
+                  ezap:request(
+                    read, ezap:get(value, Add3Promise))),
 
-    Add5Req = ecapnp:request(evaluate, C),
+    Add5Req = ezap:request(evaluate, C),
     [Add5P1, Add5P2] = call_expression(
-                         Add, 2, ecapnp:init(
+                         Add, 2, ezap:init(
                                    expression, Add5Req)),
-    ok = ecapnp:set({previousResult, MulValue}, Add5P1),
-    ok = ecapnp:set({literal, 5}, Add5P2),
-    Add5Promise = ecapnp:send(Add5Req),
-    Add5Value = ecapnp:send(
-                  ecapnp:request(
-                    read, ecapnp:get(value, Add5Promise))),
+    ok = ezap:set({previousResult, MulValue}, Add5P1),
+    ok = ezap:set({literal, 5}, Add5P2),
+    Add5Promise = ezap:send(Add5Req),
+    Add5Value = ezap:send(
+                  ezap:request(
+                    read, ezap:get(value, Add5Promise))),
 
-    case ecapnp:get(value, Add3Value) of
+    case ezap:get(value, Add3Value) of
         27.0 ->
-            case ecapnp:get(value, Add5Value) of
+            case ezap:get(value, Add5Value) of
                 29.0 ->
                     io:format("PASS");
                 Other ->
@@ -194,7 +194,7 @@ def_functions(C0) ->
     %% this doesn't really wait, as the result is already there, but
     %% merely retreives the result from the local vat's question
     %% table.
-    {ok, C} = ecapnp:wait(C0),
+    {ok, C} = ezap:wait(C0),
 
     %% get operators from server
     Add = get_operator(add, C),
@@ -202,50 +202,50 @@ def_functions(C0) ->
 
     %% define f
     F = (fun () ->
-                 Req = ecapnp:request(defFunction, C),
-                 ok = ecapnp:set(paramCount, 2, Req),
-                 Body = ecapnp:init(body, Req),
+                 Req = ezap:request(defFunction, C),
+                 ok = ezap:set(paramCount, 2, Req),
+                 Body = ezap:init(body, Req),
                  [Add1, Add2] = call_expression(Add, 2, Body),
                  [Mul1, Mul2] = call_expression(Mul, 2, Add1),
-                 ok = ecapnp:set({parameter, 0}, Mul1), %% x
-                 ok = ecapnp:set({literal, 100}, Mul2), %% * 100
-                 ok = ecapnp:set({parameter, 1}, Add2), %% + y
-                 Promise = ecapnp:send(Req),
-                 ecapnp:get(func, Promise)
+                 ok = ezap:set({parameter, 0}, Mul1), %% x
+                 ok = ezap:set({literal, 100}, Mul2), %% * 100
+                 ok = ezap:set({parameter, 1}, Add2), %% + y
+                 Promise = ezap:send(Req),
+                 ezap:get(func, Promise)
          end)(),
     %% define g
     G = (fun () ->
-                 Req = ecapnp:request(defFunction, C),
-                 ok = ecapnp:set(paramCount, 1, Req),
-                 Body = ecapnp:init(body, Req),
+                 Req = ezap:request(defFunction, C),
+                 ok = ezap:set(paramCount, 1, Req),
+                 Body = ezap:init(body, Req),
                  [Mul1, Mul2] = call_expression(Mul, 2, Body),
                  [Call1, Call2] = call_expression(F, 2, Mul1),
                  [Add1, Add2] = call_expression(Add, 2, Call2),
-                 ok = ecapnp:set({parameter, 0}, Call1), %% x
-                 ok = ecapnp:set({parameter, 0}, Add1), %% x
-                 ok = ecapnp:set({literal, 1}, Add2), %% + 1
-                 ok = ecapnp:set({literal, 2}, Mul2), %% * 2
-                 Promise = ecapnp:send(Req),
-                 ecapnp:get(func, Promise)
+                 ok = ezap:set({parameter, 0}, Call1), %% x
+                 ok = ezap:set({parameter, 0}, Add1), %% x
+                 ok = ezap:set({literal, 1}, Add2), %% + 1
+                 ok = ezap:set({literal, 2}, Mul2), %% * 2
+                 Promise = ezap:send(Req),
+                 ezap:get(func, Promise)
          end)(),
     %% f(12, 34)
-    Freq = ecapnp:request(evaluate, C),
-    Fexpr = ecapnp:init(expression, Freq),
+    Freq = ezap:request(evaluate, C),
+    Fexpr = ezap:init(expression, Freq),
     [F1, F2] = call_expression(F, 2, Fexpr),
-    ok = ecapnp:set({literal, 12}, F1),
-    ok = ecapnp:set({literal, 34}, F2),
+    ok = ezap:set({literal, 12}, F1),
+    ok = ezap:set({literal, 34}, F2),
     Fvalue = req_value(Freq),
 
     %% g(21)
-    Greq = ecapnp:request(evaluate, C),
-    Gexpr = ecapnp:init(expression, Greq),
+    Greq = ezap:request(evaluate, C),
+    Gexpr = ezap:init(expression, Greq),
     [G1] = call_expression(G, 1, Gexpr),
-    ok = ecapnp:set({literal, 21}, G1),
+    ok = ezap:set({literal, 21}, G1),
     Gvalue = req_value(Greq),
 
-    case ecapnp:get(value, Fvalue) of
+    case ezap:get(value, Fvalue) of
         1234.0 ->
-            case ecapnp:get(value, Gvalue) of
+            case ezap:get(value, Gvalue) of
                 4244.0 ->
                     io:format("PASS");
                 Other ->
@@ -260,24 +260,24 @@ def_functions(C0) ->
 callback(C) ->
     io:format("~nUsing a callback... "),
 
-    {ok, PowerFunction} = ecapnp_capability_sup:start_capability(
-                            ?MODULE, calculator_capnp:'Calculator'(['Function']),
+    {ok, PowerFunction} = ezap_capability_sup:start_capability(
+                            ?MODULE, calculator_zap:'Calculator'(['Function']),
                             [{monitor, self()}]),
 
     Add = get_operator(add, C),
 
     %% expr: 2^(4+5)
-    Req = ecapnp:request(evaluate, C),
-    Exp = ecapnp:init(expression, Req),
+    Req = ezap:request(evaluate, C),
+    Exp = ezap:init(expression, Req),
 
     [Arg1, Arg2] = call_expression(PowerFunction, 2, Exp),
     [Add1, Add2] = call_expression(Add, 2, Arg2),
-    ok = ecapnp:set({literal, 2}, Arg1),
-    ok = ecapnp:set({literal, 4}, Add1),
-    ok = ecapnp:set({literal, 5}, Add2),
+    ok = ezap:set({literal, 2}, Arg1),
+    ok = ezap:set({literal, 4}, Add1),
+    ok = ezap:set({literal, 5}, Add2),
 
     Value = req_value(Req),
-    case ecapnp:get(value, Value) of
+    case ezap:get(value, Value) of
         512.0 ->
             io:format("PASS");
         Other ->
@@ -288,22 +288,22 @@ callback(C) ->
 %%% utils
 
 get_operator(Op, C) ->
-    Req = ecapnp:request(getOperator, C),
-    ok = ecapnp:set(op, Op, Req),
-    ecapnp:get(func, ecapnp:send(Req)).
+    Req = ezap:request(getOperator, C),
+    ok = ezap:set(op, Op, Req),
+    ezap:get(func, ezap:send(Req)).
 
 call_expression(Fun, ParamCount, Expr) ->
-    Call = ecapnp:set(call, Expr),
-    ok = ecapnp:set(function, Fun, Call),
-    ecapnp:set(params, ParamCount, Call).
+    Call = ezap:set(call, Expr),
+    ok = ezap:set(function, Fun, Call),
+    ezap:set(params, ParamCount, Call).
 
 req_value(Req) ->
-    ecapnp:send(
-      ecapnp:request(
-        read, ecapnp:get(value, ecapnp:send(Req))
+    ezap:send(
+      ezap:request(
+        read, ezap:get(value, ezap:send(Req))
        )).
 
 %% implement pow() function
 handle_call(['Calculator', 'Function'], 'call', Params, Results, State) ->
-    [Arg1, Arg2] = ecapnp:get(params, Params),
-    {ecapnp:set(value, math:pow(Arg1, Arg2), Results), State}.
+    [Arg1, Arg2] = ezap:get(params, Params),
+    {ezap:set(value, math:pow(Arg1, Arg2), Results), State}.

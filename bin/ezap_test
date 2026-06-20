@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# The tmpfile hack is to avoid using stdin from erlang
+# as that is seriously bugged on windows
+
+case $1 in
+    decode*)
+        tmpfile=`mktemp ezap_test.XXXXXXXXXX`
+        cat > $tmpfile && ${0%/*}/run_test $tmpfile $*
+        ret=$?
+        rm $tmpfile
+        exit $ret;;
+    *) ${0%/*}/run_test $* ;;
+esac

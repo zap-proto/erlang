@@ -23,8 +23,8 @@ all() ->
 
 run_eunit(_Config) ->
     case eunit:test(
-           [ecapnp_val, ecapnp_ref, ecapnp_obj, ecapnp_get,
-            ecapnp_set, ecapnp_capability
+           [ezap_val, ezap_ref, ezap_obj, ezap_get,
+            ezap_set, ezap_capability
            ])
     of 
         ok -> ok;

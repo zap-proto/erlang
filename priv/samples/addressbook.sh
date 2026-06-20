@@ -36,11 +36,11 @@ read([]) ->
     dump_message(read_stdin()).
 
 write([]) ->
-    {ok, Root} = ecapnp:set_root(addressbook_capnp:'AddressBook'()),
-    [Alice, Bob, Steve] = ecapnp:set(people, 3, Root),
-    [AlicePhone] = ecapnp:set(phones, 1, Alice),
-    [BobPhone1, BobPhone2] = ecapnp:set(phones, 2, Bob),
-    [ecapnp:set(Field, Value, Obj)
+    {ok, Root} = ezap:set_root(addressbook_zap:'AddressBook'()),
+    [Alice, Bob, Steve] = ezap:set(people, 3, Root),
+    [AlicePhone] = ezap:set(phones, 1, Alice),
+    [BobPhone1, BobPhone2] = ezap:set(phones, 2, Bob),
+    [ezap:set(Field, Value, Obj)
      || {Obj, FieldValues} <-
             [{Alice,
               [{id, 123},
@@ -80,30 +80,30 @@ write([]) ->
         {Field, Value} <- FieldValues],
 
     %% Get message data and pack it
-    Data1 = ecapnp_serialize:pack(
-              ecapnp_message:write(Root)),
+    Data1 = ezap_serialize:pack(
+              ezap_message:write(Root)),
     io:setopts([{encoding, unicode}]),
     io:put_chars(Data1).
 
 
 dump_message(Data) ->
     %% unpack and read message data
-    {ok, Message, <<>>} = ecapnp_message:read(
-                            ecapnp_serialize:unpack(Data)),
-    {ok, Root} = ecapnp:get_root(
-                   addressbook_capnp:'AddressBook'(), Message),
-    People = ecapnp:get(people, Root),
+    {ok, Message, <<>>} = ezap_message:read(
+                            ezap_serialize:unpack(Data)),
+    {ok, Root} = ezap:get_root(
+                   addressbook_zap:'AddressBook'(), Message),
+    People = ezap:get(people, Root),
     [dump_person(Person) || Person <- People].
 
 dump_person(Person) ->
-    io:format("#~p ", [ecapnp:get(id, Person)]),
-    io:format("~s: ~s~n", [ecapnp:get(name, Person),
-                           ecapnp:get(email, Person)]),
-    Phones = ecapnp:get(phones, Person),
-    [io:format("  ~s phone: ~s~n", [ecapnp:get(type, P),
-                                    ecapnp:get(number, P)])
+    io:format("#~p ", [ezap:get(id, Person)]),
+    io:format("~s: ~s~n", [ezap:get(name, Person),
+                           ezap:get(email, Person)]),
+    Phones = ezap:get(phones, Person),
+    [io:format("  ~s phone: ~s~n", [ezap:get(type, P),
+                                    ezap:get(number, P)])
      || P <- Phones],
-    case ecapnp:get(employment, Person) of
+    case ezap:get(employment, Person) of
         {unemployed, void} -> io:format("  unemployed~n");
         {employer, Employer} ->
             io:format("  employer: ~s~n", [Employer]);

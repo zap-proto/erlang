@@ -19,13 +19,13 @@
 %% @doc Calculator server sample application.
 %%
 %% The operations are based on the calculator server sample from the
-%% capnproto distribution.
+%% zap distribution.
 
 -module('calculator-server').
 
 -export([dbg/0, run/0, init/1, handle_call/5]).
 
--include_lib ("ecapnp/include/ecapnp.hrl").
+-include_lib ("ezap/include/ezap.hrl").
 
 dbg() ->
     io:format(
@@ -33,22 +33,22 @@ dbg() ->
       [[dbg:tracer(),
         dbg:p(new, [c]),
         %dbg:tpl(?MODULE, []),
-        dbg:tpl(ecapnp_capability, [])
-        %dbg:tp(ecapnp_rpc, []),
-        %dbg:tpl(ecapnp_vat, []),
-        %dbg:tp(ecapnp, [])
+        dbg:tpl(ezap_capability, [])
+        %dbg:tp(ezap_rpc, []),
+        %dbg:tpl(ezap_vat, []),
+        %dbg:tp(ezap, [])
        ]]).
 
 run() ->
     spawn_link(
       fun () ->
-              ecapnp_promise_sup:start_link(),
-              ecapnp_capability_sup:start_link(),
+              ezap_promise_sup:start_link(),
+              ezap_capability_sup:start_link(),
               CapRestorer = fun (ObjectId, Vat) ->
-                                    case ecapnp_obj:to_text(ObjectId) of
+                                    case ezap_obj:to_text(ObjectId) of
                                         <<"calculator">> ->
-                                            ecapnp_capability_sup:start_capability(
-                                              ?MODULE, calculator_capnp:'Calculator'(),
+                                            ezap_capability_sup:start_capability(
+                                              ?MODULE, calculator_zap:'Calculator'(),
                                               [{monitor, Vat}])
                                     end
                             end,
@@ -63,7 +63,7 @@ accept(Socket, CapRestorer) ->
     case gen_tcp:accept(Socket) of
         {ok, Client} ->
             spawn_link(fun () -> accept(Socket, CapRestorer) end),
-            {ok, Vat} = ecapnp_vat:start_link({gen_tcp, Client}, CapRestorer),
+            {ok, Vat} = ezap_vat:start_link({gen_tcp, Client}, CapRestorer),
             %%sys:trace(Vat, true),
             read_socket(Client, Vat),
             accept(Socket, CapRestorer);
@@ -93,21 +93,21 @@ read_socket(Sock, Vat) ->
 %% module, so it's kind of messy here..
 
 init({defFunction, Params}) ->
-    ParamCount = ecapnp:get(paramCount, Params),
-    Body = ecapnp:get(body, Params),
+    ParamCount = ezap:get(paramCount, Params),
+    Body = ezap:get(body, Params),
     {def, ParamCount, Body};
 init(State) -> State.
 
 handle_call('Calculator', evaluate, Params, Results, State) ->
-    Expr = ecapnp:get(expression, Params),
+    Expr = ezap:get(expression, Params),
     Value = evaluate(Expr),
-    {ecapnp:set(value, cap('Value', Value), Results), State};
+    {ezap:set(value, cap('Value', Value), Results), State};
 handle_call('Calculator', getOperator, Params, Results, State) ->
-    {ecapnp:set(func, cap('Function', {op, ecapnp:get(op, Params)}), Results), State};
+    {ezap:set(func, cap('Function', {op, ezap:get(op, Params)}), Results), State};
 handle_call(['Calculator', 'Value'], read, _Params, Results, Value) ->
-    {ecapnp:set(value, ecapnp:wait(Value), Results), Value};
+    {ezap:set(value, ezap:wait(Value), Results), Value};
 handle_call(['Calculator', 'Function'], call, Params, Results, {op, Operator}=State) ->
-    [Op1, Op2] = ecapnp:get(params, Params),
+    [Op1, Op2] = ezap:get(params, Params),
     Value =
         case Operator of
             add -> Op1 + Op2;
@@ -115,14 +115,14 @@ handle_call(['Calculator', 'Function'], call, Params, Results, {op, Operator}=St
             multiply -> Op1 * Op2;
             divide -> Op1 / Op2
         end,
-    {ecapnp:set(value, Value, Results), State};
+    {ezap:set(value, Value, Results), State};
 handle_call(['Calculator', 'Function'], call, Params, Results, {def, ParamCount, Body}=State) ->
-    CallParams = ecapnp:get(params, Params),
+    CallParams = ezap:get(params, Params),
     if length(CallParams) == ParamCount ->
-            {ecapnp:set(value, ecapnp:wait(evaluate(Body, CallParams)), Results), State}
+            {ezap:set(value, ezap:wait(evaluate(Body, CallParams)), Results), State}
     end;
 handle_call('Calculator', defFunction, Params, Results, State) ->
-    {ecapnp:set(func, cap('Function', {defFunction, Params}), Results), State}.
+    {ezap:set(func, cap('Function', {defFunction, Params}), Results), State}.
 
 
 %% Cap utils
@@ -130,24 +130,24 @@ handle_call('Calculator', defFunction, Params, Results, State) ->
 evaluate(Expr) -> evaluate(Expr, []).
 evaluate(Expr, EvalParams) ->
     {ok, Promise} =
-        ecapnp_promise_sup:start_promise(
+        ezap_promise_sup:start_promise(
           [{fullfiller,
             fun () ->
                     Result =
-                        case ecapnp:get(Expr) of
+                        case ezap:get(Expr) of
                             {literal, Literal} -> Literal;
                             {previousResult, Value} ->
-                                ReadReq = ecapnp:request(read, Value),
-                                ecapnp:get(value, ecapnp:send(ReadReq));
+                                ReadReq = ezap:request(read, Value),
+                                ezap:get(value, ezap:send(ReadReq));
                             {parameter, Idx} ->
                                 lists:nth(Idx + 1, EvalParams);
                             {call, Call} ->
-                                Func = ecapnp:get(function, Call),
+                                Func = ezap:get(function, Call),
                                 CallParams = [evaluate(E, EvalParams)
-                                              || E <- ecapnp:get(params, Call)],
-                                CallReq = ecapnp:request(call, Func),
-                                ecapnp:set(params, [ecapnp:wait(P) || P <- CallParams], CallReq),
-                                ecapnp:get(value, ecapnp:send(CallReq))
+                                              || E <- ezap:get(params, Call)],
+                                CallReq = ezap:request(call, Func),
+                                ezap:set(params, [ezap:wait(P) || P <- CallParams], CallReq),
+                                ezap:get(value, ezap:send(CallReq))
                         end,
                     {ok, Result}
             end}
@@ -155,7 +155,7 @@ evaluate(Expr, EvalParams) ->
     #promise{ pid = Promise }.
 
 cap(Type, Init) ->
-    {ok, Cap} = ecapnp_capability_sup:start_capability(
-                  ?MODULE, calculator_capnp:schema(['Calculator', Type]),
+    {ok, Cap} = ezap_capability_sup:start_capability(
+                  ?MODULE, calculator_zap:schema(['Calculator', Type]),
                   [{monitor, self()}, {init, Init}]),
     Cap.

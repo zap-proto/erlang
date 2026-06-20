@@ -1,25 +1,25 @@
 @copyright 2013, Andreas Stenius <kaos@astekk.se>
 @author Andreas Stenius <kaos@astekk.se> [http://blog.astekk.se]
-@title Overview of ecapnp: the Cap'n Proto library for Erlang
+@title Overview of ezap: the Zap library for Erlang
 @version {@version}
 @doc
 
 == Description ==
 
-The `ecapnp' library supports both Cap'n Proto serialization and RPC. The RPC
+The `ezap' library supports both Zap serialization and RPC. The RPC
 support is currently a level 1 implementation.
 
-Cap'n Proto schemas are compiled with the capnpc-erl plugin, generating Erlang
+Zap schemas are compiled with the zapc-erl plugin, generating Erlang
 modules.
 
-To invoke the {@link ecapnpc. Cap'n Proto Erlang compiler plugin}, it is
-convenient to use the `capnpc-erl' script like this:
+To invoke the {@link ezapc. Zap Erlang compiler plugin}, it is
+convenient to use the `zapc-erl' script like this:
 <pre>
-  <code>capnpc -oerl my_schema.capnp</code>
+  <code>zapc -oerl my_schema.zap</code>
 </pre>
 
-This requires that `ecapnp/bin/ecapnpc-erl' is in your `$PATH', and that
-`ecapnp' is in your
+This requires that `ezap/bin/ezapc-erl' is in your `$PATH', and that
+`ezap' is in your
 Erlang <a href="http://www.erlang.org/doc/man/code.html#id102620">libs path</a>
 (hint: use the `ERL_LIBS' environment variable).
 
@@ -28,7 +28,7 @@ Erlang <a href="http://www.erlang.org/doc/man/code.html#id102620">libs path</a>
 
 == Schema modules ==
 
-Once a `.capnp' schema file has been compiled to an Erlang module, all types
+Once a `.zap' schema file has been compiled to an Erlang module, all types
 defined in that schema is available to you from Erlang.
 
 There are several ways to get the schema for a given type, depending on what you
@@ -44,7 +44,7 @@ See {@section Sample compiled schema}.
 
 
 Typically, this is `schema(root, ...)' for getting a <a
-href="http://kentonv.github.io/capnproto/encoding.html#messages">root
+href="https://zap-proto.dev/docs/encoding#messages">root
 object</a>, `schema(get, Field, Object)' for reading and `schema(set,
 Field, Value, Object)' for writing; where `schema' is the name of the
 schema file.
@@ -58,17 +58,17 @@ text/data) or other structs (useful when reading fields of type
 
 A practical example is best to show what it looks like. 
 
-The `addressbook' example from Cap'n Proto has been ported and serves
-as an example for ecapnp as well; and is included here as a reference
+The `addressbook' example from Zap has been ported and serves
+as an example for ezap as well; and is included here as a reference
 example.
 
 ==== Addressbook schema ====
 
-The `addressbook.capnp' schema is defined thus:
+The `addressbook.zap' schema is defined thus:
 <pre>``
 @0x9eb32e19f86ee174;
 
-using Cxx = import "/capnp/c++.capnp";
+using Cxx = import "/zap/c++.zap";
 $Cxx.namespace("addressbook");
 
 struct Person {
@@ -122,7 +122,7 @@ compiles to (with added comments):
 
 %% any imported types can be seen in the source, but are not directly listed in
 %% the types above, but are accessible using the `schema/1' function
--import('c++_capnp', ['13386661402618388268'/0]).
+-import('c++_zap', ['13386661402618388268'/0]).
 ''
 </pre>
 
@@ -134,23 +134,23 @@ types as well as any annotations that applies to the schema file.
 
 To write an addressbook message, we first need an `AddressBook' root object:
 
-``{ok, AddressBook} = ecapnp:set_root(addressbook_capnp:'AddressBook'().''
+``{ok, AddressBook} = ezap:set_root(addressbook_zap:'AddressBook'().''
 
 Now, we can fill in the details. Let's add two people, and call them
 `Alice' and `Bob':
 
-``[Alice, Bob] = ecapnp:set(people, 2, AddressBook).''
+``[Alice, Bob] = ezap:set(people, 2, AddressBook).''
 
 Now, `Alice' has one phone number, while `Bob' has two:
 
-``[ecapnp:set(phones, N, P) || {P, N} <- [{Alice, 1}, {Bob, 2}]].''
+``[ezap:set(phones, N, P) || {P, N} <- [{Alice, 1}, {Bob, 2}]].''
 
 Ok, we're all set to fill in the blanks of the people and phone objects we have
 allocated. We're using a list comprehension to save on some typing:
 
 <pre>
 ``
-[ecapnp:set(Field, Value, Obj)
+[ezap:set(Field, Value, Obj)
  || {Obj, FieldValue} <-
           [{Alice,
                 [{id, 123},
@@ -180,7 +180,7 @@ saved the result when allocating people.
 All that is left now is to get the message out. Here's how to get a
 packed binary ready for dispatching:
 
-``Data = ecapnp_serialize:pack(ecapnp_message:write(AddressBook)).''
+``Data = ezap_serialize:pack(ezap_message:write(AddressBook)).''
 
 If you intend to send it to `io', make sure it uses `unicode' encoding:
 
@@ -197,24 +197,24 @@ getting at the root struct node:
 
 <pre>
 ``
-Unpacked = ecapnp_serialize:unpack(Data),
-{ok, Message, <<>>} = ecapnp_message:read(Unpacked),
-{ok, AddressBook} = ecapnp:get_root(addressbook_capnp:'AddressBook'(), Message)
+Unpacked = ezap_serialize:unpack(Data),
+{ok, Message, <<>>} = ezap_message:read(Unpacked),
+{ok, AddressBook} = ezap:get_root(addressbook_zap:'AddressBook'(), Message)
 ''
 </pre>
 
-Then we can start reading data out of it using `ecapnp:get':
+Then we can start reading data out of it using `ezap:get':
 
 <pre>
 ``
 %% this will of course fail if the people list is empty
-[Person|People] = ecapnp:get(people, AddressBook),
-Name = ecapnp:get(name, Person),
+[Person|People] = ezap:get(people, AddressBook),
+Name = ezap:get(name, Person),
 
-[Phone|Phones] = ecapnp:get(phones, Person),
-Number = ecapnp:get(number, Phone),
+[Phone|Phones] = ezap:get(phones, Person),
+Number = ezap:get(number, Phone),
 
-{Employment, Value} = ecapnp:get(employment, Person),
+{Employment, Value} = ezap:get(employment, Person),
 
 %% `Value' can be the school name, employer or `void' depending on the value of
 %% Employment.
@@ -233,22 +233,22 @@ repeat everything here at this time, as things are still subject to change..
 
 In short, there is:
 
-- `ecapnp:request/2' to invoke a call on a capability.
-- `ecapnp:send/1' to dispatch a call request.
-- `ecapnp:wait/1' to wait for the results of a call.
-- `ecapnp_vat:import_capability/3' to restore capabilities.
+- `ezap:request/2' to invoke a call on a capability.
+- `ezap:send/1' to dispatch a call request.
+- `ezap:wait/1' to wait for the results of a call.
+- `ezap_vat:import_capability/3' to restore capabilities.
 
 For now, refer to the client and server samples for the glue code needed.
 
 
 == Project info ==
 <dl>
-  <dt>Project page</dt><dd>[http://ecapnp.astekk.se]</dd>
-  <dt>Source code</dt><dd>[http://github.com/kaos/ecapnp]</dd>
-  <dt>Cap'n Proto</dt>
+  <dt>Project page</dt><dd>[https://zap-proto.io]</dd>
+  <dt>Source code</dt><dd>[https://github.com/zap-proto/erlang]</dd>
+  <dt>Zap</dt>
   <dd>
-    Home: [http://capnproto.com] <br/>
-    Code: [http://github.com/kentonv/capnproto]
+    Home: [https://zap-proto.io] <br/>
+    Code: [https://github.com/zap-proto/erlang]
   </dd>
   <dt>License</dt><dd>
    <pre>Licensed under the Apache License, Version 2.0 (the "License");

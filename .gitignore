@@ -6,7 +6,7 @@ deps
 ebin/
 *.dump
 erlang.mk
-bin/test.capnp.hrl
+bin/test.zap.hrl
 logs/
 .directory
 doc/*.html

@@ -1,9 +1,0 @@
-%% -*- mode: erlang -*-
-{application, ecapnp,
- [{description, "Cap'n Proto library for Erlang"},
-  {vsn, "0.2"},
-  {registered, []},
-  {applications, [ kernel, stdlib, crypto ]},
-  {modules, [ecapnp_capability, ecapnpc, ecapnp_val, ecapnp_obj, ecapnp_schema, ecapnp_compiler, ecapnp_get, ecapnp_ref, ecapnp_serialize, ecapnp, ecapnp_message, ecapnp_data, ecapnp_set, 'c++_capnp', schema_capnp]},
-  {env, []}
- ]}.

@@ -1,5 +1,5 @@
 # Options for erlang.mk
-PROJECT = ecapnp
+PROJECT = ezap
 
 #test%: TEST_ERLC_OPTS += -DEUNIT_NOAUTO
 
@@ -17,7 +17,7 @@ TEST_DEPS ?= meck proper eunit_formatters
 
 dep_meck = https://github.com/eproxus/meck.git master
 dep_proper = pkg://proper master
-dep_eunit_formatters = git git://github.com/seancribbs/eunit_formatters master
+dep_eunit_formatters = git https://github.com/seancribbs/eunit_formatters master
 
 include erlang.mk
 
@@ -28,12 +28,12 @@ include erlang.mk
 # erlang.mk:
 # 	@echo " GET   " $@; wget -O $@ $(erlang_mk_url)
 
-# build rules for .capnp files
-%.capnp.hrl: %.capnp
-	$(gen_verbose) capnpc -oerl $<
+# build rules for .zap files
+%.zap.hrl: %.zap
+	$(gen_verbose) zapc -oerl $<
 
-%_capnp.erl: %.capnp | ebin
-	$(gen_verbose) ECAPNP_TO_ERL=../$(dir $@) capnpc\
+%_zap.erl: %.zap | ebin
+	$(gen_verbose) EZAP_TO_ERL=../$(dir $@) zapc\
 		-oerl:ebin --src-prefix=$(dir $<) $<
 
 ebin:
@@ -42,16 +42,16 @@ ebin:
 # make sure we rebuild on any header file change
 %.erl: include/*.hrl include/*/*.hrl ; @touch $@
 
-# capnp_test integration
-dep_capnp_test = git://github.com/kaos/capnp_test.git
-$(eval $(call dep_target,capnp_test))
+# zap_test integration
+dep_zap_test = https://github.com/zap-proto/zap_test.git
+$(eval $(call dep_target,zap_test))
 
-bin/test.capnp.hrl: $(DEPS_DIR)/capnp_test/test.capnp
-	capnpc -oerl:$(dir $@) --src-prefix=$(dir $<) $<
+bin/test.zap.hrl: $(DEPS_DIR)/zap_test/test.zap
+	zapc -oerl:$(dir $@) --src-prefix=$(dir $<) $<
 
 .PHONY: check
-check:: export CAPNP_TEST_APP = $(CURDIR)/bin/ecapnp_test
-check:: $(DEPS_DIR)/capnp_test bin/test.capnp.hrl
+check:: export ZAP_TEST_APP = $(CURDIR)/bin/ezap_test
+check:: $(DEPS_DIR)/zap_test bin/test.zap.hrl
 	$(MAKE) -C $<
 
 
@@ -59,7 +59,7 @@ check:: $(DEPS_DIR)/capnp_test bin/test.capnp.hrl
 # call it as `make dbg PROP=text_data LINE=117`
 # will dump you attached to a process running the text_data prop test,
 # on line 117
-# Currently we need ecapnp on the erlang lib path.. will fix that eventually..
+# Currently we need ezap on the erlang lib path.. will fix that eventually..
 .PHONY: bld dbg tst e p
 bld: TEST_DEPS=
 bld: TEST_ERLC_OPTS += -DEUNIT_NOAUTO
@@ -68,22 +68,22 @@ bld: app build-tests
 dbg: bld
 	erl -pa ebin test -eval \
 		"begin\
-			[i:ii(M) || M <- [ecapnp, ecapnp_obj, ecapnp_get, ecapnp_set,\
-				ecapnp_props, ecapnp_ref, ecapnp_data]],\
-			i:ib(ecapnp_props, $(LINE)),\
+			[i:ii(M) || M <- [ezap, ezap_obj, ezap_get, ezap_set,\
+				ezap_props, ezap_ref, ezap_data]],\
+			i:ib(ezap_props, $(LINE)),\
 			i:iaa([break]),\
-			proper:quickcheck(ecapnp_props:prop_$(PROP)())\
+			proper:quickcheck(ezap_props:prop_$(PROP)())\
 		end"
 
 tst: e p
 
 erl: bld
 	erl -pa ebin test priv/samples -eval \
-		"[i:ii(M) || M <- [ecapnp, ecapnp_obj, ecapnp_get, ecapnp_set,\
-			ecapnp_ref, ecapnp_data, ecapnp_schema, ecapnp_get_tests,\
-			ecapnp_set_tests, ecapnp_rpc, ecapnp_rpc_tests, ecapnp_vat,\
-			ecapnp_vat_tests, ecapnp_capability, ecapnp_capability_sup,\
-			ecapnp_ref_tests, 'calculator-server']]"
+		"[i:ii(M) || M <- [ezap, ezap_obj, ezap_get, ezap_set,\
+			ezap_ref, ezap_data, ezap_schema, ezap_get_tests,\
+			ezap_set_tests, ezap_rpc, ezap_rpc_tests, ezap_vat,\
+			ezap_vat_tests, ezap_capability, ezap_capability_sup,\
+			ezap_ref_tests, 'calculator-server']]"
 
 e: bld
 	erl -pa ebin test -pa deps/meck/ebin -noinput \
@@ -92,7 +92,7 @@ e: bld
 
 p: bld
 	erl -pa ebin test -noinput \
-		-eval "proper:module(ecapnp_props), init:stop()"
+		-eval "proper:module(ezap_props), init:stop()"
 
 .PHONY: samples
 samples: app
