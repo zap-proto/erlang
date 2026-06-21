@@ -17,7 +17,7 @@
 -module(ezap_capability_tests).
 -ifdef(TEST).
 -export([basicCap_funs/0]).
--import(ezap_test_utils, [meck/3, setup_meck/2, teardown_meck/1]).
+-import(ezap_test_utils, [setup_meck/2, teardown_meck/1, stop_sup/1]).
 
 -include_lib("eunit/include/eunit.hrl").
 -include("include/ezap.hrl").
@@ -26,11 +26,12 @@
 basicCap_test_() ->
     {setup,
      fun () ->
-             {ok, _} = ezap_promise_sup:start_link(),
-             setup_meck(basicCap, basicCap_funs())
+             {ok, ProS} = ezap_promise_sup:start_link(),
+             {ProS, setup_meck(basicCap, basicCap_funs())}
      end,
-     fun (Mod) ->
-             teardown_meck(Mod)
+     fun ({ProS, Mod}) ->
+             teardown_meck(Mod),
+             stop_sup(ProS)
      end,
      [fun () ->
               {ok, Pid} = ezap_capability:start([basicCap, [test_zap:'BasicCap'()]]),
@@ -47,15 +48,23 @@ basicCap_test_() ->
      ]}.
 
 thirdCap_test_() ->
-    meck(thirdCap, thirdCap_funs(),
-         [fun () ->
-                  S = test_zap:'ThirdCap'(),
-                  {ok, Pid} = ezap_capability:start_link([thirdCap, [S], {init, third}]),
-                  test_basicCap_add(Pid, test_zap:'BasicCap'(), 333, 666),
-                  test_otherCap_sqroot(Pid, test_zap:'OtherCap'(), 4),
-                  test_thirdCap_square(Pid, S, 5)
-          end
-         ]).
+    {setup,
+     fun () ->
+             {ok, ProS} = ezap_promise_sup:start_link(),
+             {ProS, setup_meck(thirdCap, thirdCap_funs())}
+     end,
+     fun ({ProS, Mod}) ->
+             teardown_meck(Mod),
+             stop_sup(ProS)
+     end,
+     [fun () ->
+              S = test_zap:'ThirdCap'(),
+              {ok, Pid} = ezap_capability:start_link([thirdCap, [S], {init, third}]),
+              test_basicCap_add(Pid, test_zap:'BasicCap'(), 333, 666),
+              test_otherCap_sqroot(Pid, test_zap:'OtherCap'(), 4),
+              test_thirdCap_square(Pid, S, 5)
+      end
+     ]}.
 
 basicCap_funs() ->
     [{handle_call, fun ('BasicCap', add, Params, Result, undefined) -> {basicCap_add(Params, Result), undefined};

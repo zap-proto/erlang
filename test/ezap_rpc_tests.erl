@@ -20,7 +20,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("include/ezap.hrl").
 
--import(ezap_test_utils, [meck/2, setup_meck/2, teardown_meck/1]).
+-import(ezap_test_utils, [meck/2, setup_meck/2, teardown_meck/1, stop_sup/1]).
 -import(ezap_capability_tests, [basicCap_funs/0]).
 
 -record(test, {
@@ -64,7 +64,7 @@ rpc_local_test_() ->
              #test{ sup = [CapS, ProS], basic = BasicCap, pipelines = PipelinesCap, mods = Mods }
      end,
      fun (#test{ sup = Sups, mods = Mods }) ->
-             [exit(S, normal) || S <- Sups],
+             [stop_sup(S) || S <- Sups],
              [teardown_meck(Mod) || Mod <- Mods]
      end,
      {with,
@@ -127,7 +127,7 @@ rpc_remote_test_() ->
      fun (#test{ sup = Sups, mods = Mods, bridge = Bridge }) ->
              Bridge ! {self(), stop},
              receive Bridge -> ok end,
-             [exit(S, normal) || S <- Sups],
+             [stop_sup(S) || S <- Sups],
              [teardown_meck(Mod) || Mod <- Mods]
      end,
      {with,

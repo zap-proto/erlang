@@ -18,8 +18,8 @@ run_test(Case, Test, Message) when is_list(Case) ->
     try
         run_test(list_to_atom(Case), list_to_atom(Test), Message)
     catch
-        Class:Error ->
-            io:format(standard_error, "ezap_test error: ~p:~p ~p~n", [Class, Error, erlang:get_stacktrace()])
+        Class:Error:Stack ->
+            io:format(standard_error, "ezap_test error: ~p:~p ~p~n", [Class, Error, Stack])
     end;
 
 run_test(decode, Test, Message) ->

@@ -18,7 +18,7 @@
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -include("include/ezap.hrl").
--export([data/1, meck/2, meck/3, setup_meck/2, teardown_meck/1]).
+-export([data/1, meck/2, meck/3, setup_meck/2, teardown_meck/1, stop_sup/1]).
 
 %% ----------------------------------------
 meck_test_() ->
@@ -52,5 +52,22 @@ setup_meck(Mod, Funs) ->
 teardown_meck(Mod) ->
     ?assert(meck:validate(Mod)),
     ?assertEqual(ok, meck:unload(Mod)).
+
+%% ----------------------------------------
+%% Synchronously stop a (locally registered) supervisor started with
+%% start_link/0 from a test setup. exit(Pid, normal) is a no-op against a
+%% supervisor (it traps exits), which leaks the registered name and makes the
+%% next test fail with {already_started, _}. Unlink so the kill signal does
+%% not reach the test process, then kill and wait for it to actually die.
+stop_sup(Pid) when is_pid(Pid) ->
+    unlink(Pid),
+    Ref = monitor(process, Pid),
+    exit(Pid, kill),
+    receive
+        {'DOWN', Ref, process, Pid, _Reason} -> ok
+    after 5000 ->
+            demonitor(Ref, [flush]),
+            error({stop_sup_timeout, Pid})
+    end.
 
 -endif.
